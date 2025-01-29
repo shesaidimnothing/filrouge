@@ -1,87 +1,115 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import PageTransition from '@/components/PageTransition';
+import Navbar from '@/components/Navbar';
 
 export default function SignIn() {
-  const [credentials, setCredentials] = useState({
-    email: '',
-    password: '',
-  });
-
+  const router = useRouter();
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de la connexion');
-      }
-
-      window.location.href = '/';
+      await login(formData);
+      router.push('/');
     } catch (error) {
-      console.error('Erreur:', error);
       setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setCredentials({
-      ...credentials,
-      [e.target.name]: e.target.value,
-    });
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-96">
-        <h2 className="text-2xl font-bold text-center mb-6">Connexion</h2>
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+    <PageTransition>
+      <div className="min-h-screen bg-white dark:bg-black">
+        <Navbar />
+        <main className="max-w-md mx-auto px-8 pt-32">
+          <Link href="/">
+            <span className="nav-link">← Retour</span>
+          </Link>
+
+          <div className="mt-16 mb-12">
+            <h1 className="text-3xl font-light tracking-wider uppercase mb-8">
+              Connexion
+            </h1>
+
+            {error && (
+              <div className="mb-6 text-red-600 dark:text-red-400">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div>
+                <label className="block text-sm uppercase tracking-wider mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="glass-input w-full"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm uppercase tracking-wider mb-2">
+                  Mot de passe
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="glass-input w-full"
+                  required
+                />
+              </div>
+
+              <motion.button
+                type="submit"
+                disabled={loading}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="glass-button w-full mt-8"
+              >
+                {loading ? 'Connexion...' : 'Se connecter'}
+              </motion.button>
+
+              <div className="text-center text-sm">
+                <span className="text-black/60 dark:text-white/60">
+                  Pas encore de compte ?{' '}
+                </span>
+                <Link href="/signup">
+                  <span className="nav-link">S'inscrire</span>
+                </Link>
+              </div>
+            </form>
           </div>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={credentials.email}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Mot de passe</label>
-            <input
-              type="password"
-              name="password"
-              value={credentials.password}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors"
-          >
-            Se connecter
-          </button>
-        </form>
+        </main>
       </div>
-    </div>
+    </PageTransition>
   );
 }

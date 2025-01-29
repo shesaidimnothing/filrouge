@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model users {
+model User {
   id         Int       @id @default(autoincrement())
   first_name String?   @db.VarChar(50)
   last_name  String?   @db.VarChar(50)
@@ -17,4 +17,46 @@ model users {
   gender     String?   @db.Char(1)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   last_auth  DateTime? @db.Timestamp(6)
+  ads        Ad[]
+  sent_messages     Message[]  @relation("SentMessages")
+  received_messages Message[]  @relation("ReceivedMessages")
+
+  @@map("users")
+}
+
+model Ad {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  style       String   @db.VarChar(50)
+  type        String   @db.VarChar(50)
+  color       String   @db.VarChar(30)
+  price       Float
+  description String   @db.Text
+  images      String[]
+  location    String   @db.VarChar(100)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @updatedAt @db.Timestamp(6)
+  user_id     Int
+  user        User     @relation(fields: [user_id], references: [id])
+  messages    Message[]
+
+  @@map("ads")
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  content     String   @db.Text
+  ad_id       Int
+  ad          Ad       @relation(fields: [ad_id], references: [id])
+  sender_id   Int
+  sender      User     @relation("SentMessages", fields: [sender_id], references: [id])
+  receiver_id Int
+  receiver    User     @relation("ReceivedMessages", fields: [receiver_id], references: [id])
+  read        Boolean  @default(false)
+  sent        Boolean  @default(false)
+  deleted     Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("messages")
 }

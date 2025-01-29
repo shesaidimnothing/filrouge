@@ -9,11 +9,14 @@ export async function POST(request) {
     const body = await request.json();
     const { email, password } = body;
 
-    // Trouver utilisateur
+    // Vérifier si l'email existe
     const user = await prisma.users.findUnique({
-      where: { email },
+      where: {
+        email: email,
+      },
     });
 
+    // Si l'utilisateur n'existe pas ou si le mot de passe est incorrect
     if (!user) {
       return NextResponse.json(
         { error: 'Email ou mot de passe incorrect' },
@@ -21,7 +24,7 @@ export async function POST(request) {
       );
     }
 
-    // Vérifier mot de passe
+    // Vérifier le mot de passe avec bcrypt
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return NextResponse.json(
@@ -30,16 +33,24 @@ export async function POST(request) {
       );
     }
 
-    // Mettre à jour last_auth
+    // Mettre à jour la dernière connexion
     await prisma.users.update({
-      where: { id: user.id },
-      data: { last_auth: new Date() },
+      where: {
+        id: user.id,
+      },
+      data: {
+        last_auth: new Date(),
+      },
     });
 
-    // Pas renvoyer le mot de passe
+    // Ne pas renvoyer le mot de passe dans la réponse
     const { password: _, ...userWithoutPassword } = user;
 
-    return NextResponse.json(userWithoutPassword);
+    return NextResponse.json({
+      message: 'Connexion réussie',
+      user: userWithoutPassword
+    });
+
   } catch (error) {
     console.error('Erreur lors de la connexion:', error);
     return NextResponse.json(
