@@ -16,18 +16,14 @@ export async function GET() {
 
     const userId = parseInt(authToken.value);
 
-    // Récupérer toutes les conversations groupées par annonce
-    const conversations = await prisma.message.findMany({
+    // Récupérer d'abord tous les messages impliquant l'utilisateur
+    const messages = await prisma.message.findMany({
       where: {
         OR: [
           { sender_id: userId },
           { receiver_id: userId }
         ]
       },
-      orderBy: {
-        created_at: 'desc'
-      },
-      distinct: ['ad_id'],
       include: {
         sender: {
           select: {
@@ -58,28 +54,40 @@ export async function GET() {
             }
           }
         }
+      },
+      orderBy: {
+        created_at: 'desc'
       }
     });
 
-    // Formater les conversations
-    const formattedConversations = conversations.map(msg => ({
-      id: msg.ad_id,
-      ad: {
-        id: msg.ad.id,
-        name: msg.ad.name,
-        image: msg.ad.images[0],
-        price: msg.ad.price,
-      },
-      seller: msg.ad.user,
-      otherUser: msg.sender_id === userId ? msg.receiver : msg.sender,
-      lastMessage: {
-        content: msg.content,
-        created_at: msg.created_at,
-        isFromMe: msg.sender_id === userId
-      }
-    }));
+    // Grouper les conversations par paire unique (ad_id, other_user_id)
+    const conversationsMap = new Map();
 
-    return NextResponse.json(formattedConversations);
+    messages.forEach(message => {
+      const isUserSender = message.sender_id === userId;
+      const otherUserId = isUserSender ? message.receiver_id : message.sender_id;
+      const otherUser = isUserSender ? message.receiver : message.sender;
+      const key = `${message.ad_id}-${otherUserId}`;
+
+      if (!conversationsMap.has(key)) {
+        conversationsMap.set(key, {
+          id: `${message.ad_id}-${otherUserId}`, // ID unique pour la conversation
+          ad: message.ad,
+          seller: message.ad.user,
+          otherUser: otherUser,
+          lastMessage: {
+            content: message.content,
+            created_at: message.created_at,
+            isFromMe: isUserSender
+          }
+        });
+      }
+    });
+
+    // Convertir la Map en tableau de conversations
+    const conversations = Array.from(conversationsMap.values());
+
+    return NextResponse.json(conversations);
   } catch (error) {
     console.error('Erreur:', error);
     return NextResponse.json(

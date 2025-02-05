@@ -61,7 +61,13 @@ export default function Messages() {
           throw new Error(data.error);
         }
 
-        setMessages(data);
+        setMessages(data.messages);
+        // Mettre à jour les informations de l'annonce et de l'autre utilisateur
+        setCurrentConversation(prev => ({
+          ...prev,
+          ad: data.ad,
+          otherUser: data.otherUser
+        }));
         scrollToBottom();
       } catch (error) {
         setError(error.message);
@@ -69,7 +75,7 @@ export default function Messages() {
     };
 
     fetchMessages();
-  }, [currentConversation]);
+  }, [currentConversation?.id]);
 
   // Socket.IO listeners
   useEffect(() => {
@@ -215,64 +221,63 @@ export default function Messages() {
   };
 
   return (
-    <PageTransition>
-      <div className="min-h-screen bg-white dark:bg-black">
-        <Navbar />
-        
-        <main className="max-w-6xl mx-auto px-8 pt-32">
-          <div className="flex h-[calc(100vh-200px)] bg-white/50 dark:bg-black/50 backdrop-blur-lg rounded-xl border border-black/10 dark:border-white/10 overflow-hidden">
-            {/* Liste des conversations */}
-            <div className="w-80 border-r border-black/10 dark:border-white/10">
-              <div className="p-4 border-b border-black/10 dark:border-white/10">
-                <h2 className="text-lg font-medium">Messages</h2>
-              </div>
-              
-              <div className="overflow-y-auto h-full">
-                {conversations.map((conv) => (
-                  <motion.div
-                    key={conv.id}
-                    onClick={() => setCurrentConversation(conv)}
-                    whileHover={{ backgroundColor: 'rgba(0,0,0,0.05)' }}
-                    className={`p-4 cursor-pointer ${
-                      currentConversation?.id === conv.id
-                        ? 'bg-black/5 dark:bg-white/5'
-                        : ''
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg">
-                        <img 
-                          src={conv.ad.image || '/images/default-car.jpg'} 
-                          alt={conv.ad.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {conv.ad.name}
-                        </p>
-                        <p className="text-xs text-black/40 dark:text-white/40">
-                          {new Intl.NumberFormat('fr-FR', {
-                            style: 'currency',
-                            currency: 'EUR'
-                          }).format(conv.ad.price)}
-                        </p>
-                        <p className="text-sm text-black/60 dark:text-white/60 truncate">
-                          {conv.lastMessage?.content || 'Aucun message'}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+    <div className="min-h-screen bg-white dark:bg-black">
+      <Navbar />
+      
+      <main className="max-w-6xl mx-auto px-8 pt-32">
+        <div className="flex h-[calc(100vh-200px)] bg-white/50 dark:bg-black/50 backdrop-blur-lg rounded-xl border border-black/10 dark:border-white/10 overflow-hidden">
+          {/* Liste des conversations */}
+          <div className="w-80 border-r border-black/10 dark:border-white/10">
+            <div className="p-4 border-b border-black/10 dark:border-white/10">
+              <h2 className="text-lg font-medium">Messages</h2>
             </div>
+            
+            <div className="overflow-y-auto h-full">
+              {conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  onClick={() => setCurrentConversation(conv)}
+                  className={`p-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 ${
+                    currentConversation?.id === conv.id
+                      ? 'bg-black/5 dark:bg-white/5'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg">
+                      <img 
+                        src={conv.ad.image || '/images/default-car.jpg'} 
+                        alt={conv.ad.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {conv.ad.name}
+                      </p>
+                      <p className="text-xs text-black/40 dark:text-white/40">
+                        {new Intl.NumberFormat('fr-FR', {
+                          style: 'currency',
+                          currency: 'EUR'
+                        }).format(conv.ad.price)}
+                      </p>
+                      <p className="text-sm text-black/60 dark:text-white/60 truncate">
+                        {conv.lastMessage?.content || 'Aucun message'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-            {/* Zone des messages */}
-            <div className="flex-1 flex flex-col">
-              {currentConversation ? (
-                <>
-                  {/* En-tête de la conversation */}
-                  <div className="p-4 border-b border-black/10 dark:border-white/10">
+          {/* Zone des messages */}
+          <div className="flex-1 flex flex-col relative">
+            {currentConversation ? (
+              <>
+                {/* En-tête de la conversation */}
+                <div className="sticky top-0 bg-white/50 dark:bg-black/50 backdrop-blur-lg border-b border-black/10 dark:border-white/10 z-10">
+                  <div className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-lg font-medium">
@@ -290,73 +295,73 @@ export default function Messages() {
                       </Link>
                     </div>
                   </div>
+                </div>
 
-                  {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <div className="space-y-4">
-                      {messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`flex ${
-                            msg.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
-                          <div className="relative group">
-                            <div
-                              className={`max-w-[70%] p-3 rounded-lg ${
-                                msg.sender_id === user?.id
-                                  ? 'bg-black text-white dark:bg-white dark:text-black'
-                                  : 'bg-black/5 dark:bg-white/5'
-                              } ${msg.deleted ? 'opacity-50' : ''}`}
-                            >
-                              {msg.deleted ? (
-                                <p className="italic">Message supprimé</p>
-                              ) : (
-                                <>
-                                  <p>{msg.content}</p>
-                                  <div className="flex items-center justify-end space-x-2 text-xs mt-1 opacity-60">
-                                    <span>{new Date(msg.created_at).toLocaleString()}</span>
-                                    {msg.sender_id === user?.id && (
-                                      <div className="flex space-x-1">
-                                        {msg.error ? (
-                                          <span className="text-red-500">Non envoyé</span>
-                                        ) : (
-                                          <>
-                                            <span className={msg.read ? 'opacity-50' : ''}>✓</span>
-                                            {msg.read && <span>✓</span>}
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            
-                            {!msg.deleted && (
-                              <motion.button
-                                onClick={() => deleteMessage(msg.id)}
-                                className="absolute top-2 right-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                disabled={deletingMessage === msg.id}
-                              >
-                                {deletingMessage === msg.id ? (
-                                  <span className="animate-spin">⟳</span>
-                                ) : (
-                                  <span>🗑️</span>
-                                )}
-                              </motion.button>
+                {/* Messages avec padding-top */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="pt-24 px-4 space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex ${
+                          msg.sender_id === user?.id ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        <div className="relative group">
+                          <div
+                            className={`max-w-[70%] p-3 rounded-lg ${
+                              msg.sender_id === user?.id
+                                ? 'bg-black text-white dark:bg-white dark:text-black'
+                                : 'bg-black/5 dark:bg-white/5'
+                            } ${msg.deleted ? 'opacity-50' : ''}`}
+                          >
+                            {msg.deleted ? (
+                              <p className="italic">Message supprimé</p>
+                            ) : (
+                              <>
+                                <p>{msg.content}</p>
+                                <div className="flex items-center justify-end space-x-2 text-xs mt-1 opacity-60">
+                                  <span>{new Date(msg.created_at).toLocaleString()}</span>
+                                  {msg.sender_id === user?.id && (
+                                    <div className="flex space-x-1">
+                                      {msg.error ? (
+                                        <span className="text-red-500">Non envoyé</span>
+                                      ) : (
+                                        <>
+                                          <span className={msg.read ? 'opacity-50' : ''}>✓</span>
+                                          {msg.read && <span>✓</span>}
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
                             )}
                           </div>
+                          
+                          {!msg.deleted && (
+                            <button
+                              onClick={() => deleteMessage(msg.id)}
+                              className="absolute top-2 right-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              disabled={deletingMessage === msg.id}
+                            >
+                              {deletingMessage === msg.id ? (
+                                <span className="animate-spin">⟳</span>
+                              ) : (
+                                <span>🗑️</span>
+                              )}
+                            </button>
+                          )}
                         </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
                   </div>
+                </div>
 
-                  {/* Zone de saisie */}
-                  <div className="p-4 border-t border-black/10 dark:border-white/10">
+                {/* Zone de saisie */}
+                <div className="sticky bottom-0 bg-white/50 dark:bg-black/50 backdrop-blur-lg border-t border-black/10 dark:border-white/10">
+                  <div className="p-4">
                     <form onSubmit={handleSubmit} className="flex space-x-4">
                       <input
                         type="text"
@@ -365,26 +370,24 @@ export default function Messages() {
                         placeholder="Écrivez votre message..."
                         className="flex-1 bg-transparent border border-black/10 dark:border-white/10 rounded-full px-4 py-2 focus:outline-none focus:border-black dark:focus:border-white"
                       />
-                      <motion.button
+                      <button
                         type="submit"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-full"
+                        className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-full hover:opacity-90 transition-opacity"
                       >
                         Envoyer
-                      </motion.button>
+                      </button>
                     </form>
                   </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-black/60 dark:text-white/60">
-                  Sélectionnez une conversation
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-black/60 dark:text-white/60">
+                Sélectionnez une conversation
+              </div>
+            )}
           </div>
-        </main>
-      </div>
-    </PageTransition>
+        </div>
+      </main>
+    </div>
   );
 } 

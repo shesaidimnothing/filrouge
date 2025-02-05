@@ -15,17 +15,27 @@ export async function GET(request, { params }) {
     }
 
     const userId = parseInt(authToken.value);
-    const adId = parseInt(params.id);
+    const [adId, otherUserId] = params.id.split('-').map(Number);
 
-    // Récupérer tous les messages de cette annonce où l'utilisateur est impliqué
+    // Récupérer tous les messages entre ces deux utilisateurs pour cette annonce
     const messages = await prisma.message.findMany({
       where: {
+        ad_id: adId,
         AND: [
-          { ad_id: adId },
           {
             OR: [
-              { sender_id: userId },
-              { receiver_id: userId }
+              {
+                AND: [
+                  { sender_id: userId },
+                  { receiver_id: otherUserId }
+                ]
+              },
+              {
+                AND: [
+                  { sender_id: otherUserId },
+                  { receiver_id: userId }
+                ]
+              }
             ]
           }
         ]
@@ -50,13 +60,44 @@ export async function GET(request, { params }) {
         },
         ad: {
           select: {
+            id: true,
             name: true,
+            images: true,
+            price: true,
+            user: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+              }
+            }
           }
         }
       }
     });
 
-    return NextResponse.json(messages);
+    // Récupérer les informations complètes de l'annonce
+    const ad = await prisma.ad.findUnique({
+      where: {
+        id: adId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+          }
+        }
+      }
+    });
+
+    // Retourner à la fois les messages et les informations de l'annonce
+    return NextResponse.json({
+      messages,
+      ad,
+      otherUser: messages[0]?.sender_id === userId ? messages[0]?.receiver : messages[0]?.sender
+    });
   } catch (error) {
     console.error('Erreur:', error);
     return NextResponse.json(

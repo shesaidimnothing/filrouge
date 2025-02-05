@@ -19,12 +19,27 @@ export async function PATCH(request, { params }) {
     const { read, deleted } = await request.json();
 
     // Vérifier que l'utilisateur est le destinataire ou l'expéditeur
+    // et que le message appartient à la bonne conversation
     const message = await prisma.message.findFirst({
       where: {
         id: messageId,
-        OR: [
-          { sender_id: userId },
-          { receiver_id: userId }
+        AND: [
+          {
+            OR: [
+              {
+                AND: [
+                  { sender_id: userId },
+                  { receiver_id: message.receiver_id }
+                ]
+              },
+              {
+                AND: [
+                  { receiver_id: userId },
+                  { sender_id: message.sender_id }
+                ]
+              }
+            ]
+          }
         ]
       }
     });
